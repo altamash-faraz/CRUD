@@ -144,9 +144,6 @@ The application will be available at `http://localhost:3000`
 1. Create a MongoDB Atlas account at https://www.mongodb.com/atlas
 2. Create a new cluster and get your connection string
 3. Update the `MONGODB_URI` in your `.env` file:
-```
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/crud_app
-```
 
 ### Deploy to Heroku
 
