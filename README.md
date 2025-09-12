@@ -23,13 +23,6 @@ A full-stack CRUD (Create, Read, Update, Delete) web application built with Node
 
 Before running this application, make sure you have the following installed:
 
-- Node.js (v14 or higher)
-- MongoDB (local installation or MongoDB Atlas account)
-- Git
-
-## Installation
-
-1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd simple-crud-app
