@@ -16,14 +16,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/crud_app';
 
+let mongoConnected = false;
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(() => {
+  mongoConnected = true;
   console.log('Connected to MongoDB');
 })
 .catch((error) => {
+  mongoConnected = false;
   console.error('MongoDB connection error:', error);
 });
 
@@ -64,6 +67,9 @@ app.get('/', (req, res) => {
 
 // GET - Get all items
 app.get('/api/items', async (req, res) => {
+  if (!mongoConnected) {
+    return res.status(503).json({ error: 'Database not connected. Please start MongoDB.' });
+  }
   try {
     const items = await Item.find().sort({ createdAt: -1 });
     res.json(items);
@@ -87,6 +93,9 @@ app.get('/api/items/:id', async (req, res) => {
 
 // POST - Create new item
 app.post('/api/items', async (req, res) => {
+  if (!mongoConnected) {
+    return res.status(503).json({ error: 'Database not connected. Please start MongoDB.' });
+  }
   try {
     const { name, description, category, price } = req.body;
     const item = new Item({
@@ -104,6 +113,9 @@ app.post('/api/items', async (req, res) => {
 
 // PUT - Update item by ID
 app.put('/api/items/:id', async (req, res) => {
+  if (!mongoConnected) {
+    return res.status(503).json({ error: 'Database not connected. Please start MongoDB.' });
+  }
   try {
     const { name, description, category, price } = req.body;
     const item = await Item.findByIdAndUpdate(
@@ -127,6 +139,9 @@ app.put('/api/items/:id', async (req, res) => {
 
 // DELETE - Delete item by ID
 app.delete('/api/items/:id', async (req, res) => {
+  if (!mongoConnected) {
+    return res.status(503).json({ error: 'Database not connected. Please start MongoDB.' });
+  }
   try {
     const item = await Item.findByIdAndDelete(req.params.id);
     if (!item) {
