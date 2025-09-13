@@ -23,13 +23,6 @@ A full-stack CRUD (Create, Read, Update, Delete) web application built with Node
 
 Before running this application, make sure you have the following installed:
 
-- Node.js (v14 or higher)
-- MongoDB (local installation or MongoDB Atlas account)
-- Git
-
-## Installation
-
-1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd simple-crud-app
@@ -144,9 +137,6 @@ The application will be available at `http://localhost:3000`
 1. Create a MongoDB Atlas account at https://www.mongodb.com/atlas
 2. Create a new cluster and get your connection string
 3. Update the `MONGODB_URI` in your `.env` file:
-```
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/crud_app
-```
 
 ### Deploy to Heroku
 
