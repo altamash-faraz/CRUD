@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from bson.objectid import ObjectId
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 from dotenv import load_dotenv
 import json
@@ -113,7 +113,7 @@ def log_audit(action: AuditAction, resource_type: str, resource_id: str = None,
         
     try:
         audit_log = {
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "action": action.value,
             "resource_type": resource_type,
             "resource_id": resource_id,
@@ -131,12 +131,13 @@ def update_analytics(action: str, data: Dict = None):
         return
         
     try:
-        today = datetime.utcnow().date()
+        now = datetime.now(timezone.utc)
+        today_str = now.strftime("%Y-%m-%d")  # Use string instead of date object
         analytics_collection.update_one(
-            {"date": today, "action": action},
+            {"date": today_str, "action": action},
             {
                 "$inc": {"count": 1},
-                "$set": {"last_updated": datetime.utcnow()},
+                "$set": {"last_updated": now},
                 "$push": {"data": data} if data else {}
             },
             upsert=True
@@ -164,7 +165,7 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "mongodb_connected": mongo_connected,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     })
 
 # Category Management
@@ -228,13 +229,14 @@ def create_category():
         if existing:
             return jsonify({"error": "Category already exists"}), 409
         
+        now = datetime.now(timezone.utc)
         category = {
             "name": data['name'].strip(),
             "description": data.get('description', '').strip(),
             "color": data.get('color', '#007bff'),
             "icon": data.get('icon', 'fas fa-box'),
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": now,
+            "updated_at": now
         }
         
         result = categories_collection.insert_one(category)
@@ -387,6 +389,7 @@ def create_product():
             return jsonify({"error": "Invalid category ID"}), 400
         
         # Create product document
+        now = datetime.now(timezone.utc)
         product = {
             "name": product_data.name.strip(),
             "description": product_data.description.strip(),
@@ -395,8 +398,8 @@ def create_product():
             "quantity": product_data.quantity,
             "tags": [tag.strip() for tag in product_data.tags if tag.strip()],
             "status": product_data.status,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
+            "created_at": now,
+            "updated_at": now,
             "views": 0,
             "last_viewed": None
         }
@@ -437,7 +440,7 @@ def get_product(product_id):
         # Update view count
         products_collection.update_one(
             {"_id": ObjectId(product_id)},
-            {"$inc": {"views": 1}, "$set": {"last_viewed": datetime.utcnow()}}
+            {"$inc": {"views": 1}, "$set": {"last_viewed": datetime.now(timezone.utc)}}
         )
         
         product['_id'] = str(product['_id'])
@@ -474,7 +477,7 @@ def update_product(product_id):
             return jsonify({"error": "Product not found"}), 404
         
         # Prepare update data
-        update_data = {"updated_at": datetime.utcnow()}
+        update_data = {"updated_at": datetime.now(timezone.utc)}
         
         # Update only provided fields
         if 'name' in data:
@@ -620,6 +623,7 @@ def bulk_create_products():
                     errors.append({"index": i, "errors": {"category_id": "Category not found"}})
                     continue
                 
+                now = datetime.now(timezone.utc)
                 product = {
                     "name": product_schema.name.strip(),
                     "description": product_schema.description.strip(),
@@ -628,8 +632,8 @@ def bulk_create_products():
                     "quantity": product_schema.quantity,
                     "tags": [tag.strip() for tag in product_schema.tags if tag.strip()],
                     "status": product_schema.status,
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow(),
+                    "created_at": now,
+                    "updated_at": now,
                     "views": 0,
                     "last_viewed": None
                 }
@@ -709,8 +713,13 @@ def get_dashboard_analytics():
         
         products_by_category = list(products_collection.aggregate(category_pipeline))
         
+        # Convert ObjectIds to strings for JSON serialization
+        for item in products_by_category:
+            if '_id' in item:
+                item['_id'] = str(item['_id'])
+        
         # Recent activity (last 7 days)
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
         recent_products = products_collection.count_documents({
             "created_at": {"$gte": seven_days_ago}
         })
@@ -751,6 +760,11 @@ def get_dashboard_analytics():
         
         status_distribution = list(products_collection.aggregate(status_pipeline))
         
+        # Convert ObjectIds to strings in status distribution
+        for item in status_distribution:
+            if '_id' in item and item['_id'] is not None:
+                item['_id'] = str(item['_id']) if hasattr(item['_id'], '__str__') else item['_id']
+        
         log_audit(AuditAction.READ, "analytics")
         
         return jsonify({
@@ -775,6 +789,9 @@ def get_dashboard_analytics():
         })
         
     except Exception as e:
+        print(f"Analytics dashboard error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 # Data Export
@@ -835,15 +852,16 @@ def export_products():
                 writer.writeheader()
                 writer.writerows(products)
             
+            now = datetime.now(timezone.utc)
             return output.getvalue(), 200, {
                 'Content-Type': 'text/csv',
-                'Content-Disposition': f'attachment; filename=products_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
+                'Content-Disposition': f'attachment; filename=products_{now.strftime("%Y%m%d_%H%M%S")}.csv'
             }
         
         return jsonify({
             "data": products,
             "count": len(products),
-            "exported_at": datetime.utcnow().isoformat(),
+            "exported_at": now.isoformat(),
             "format": format_type
         })
         
