@@ -159,6 +159,11 @@ def index():
     """Serve the main application page"""
     return render_template('index.html')
 
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon to prevent 404 errors"""
+    return '', 204
+
 @app.route('/health')
 def health_check():
     """Health check endpoint"""
@@ -377,6 +382,7 @@ def create_product():
         
         validation_errors = product_data.validate()
         if validation_errors:
+            print(f"Product validation errors: {validation_errors}")
             return jsonify({"error": "Validation failed", "details": validation_errors}), 400
         
         # Verify category exists
@@ -422,8 +428,12 @@ def create_product():
         return jsonify(product), 201
         
     except ValueError as e:
+        print(f"Product creation ValueError: {e}")
         return jsonify({"error": f"Invalid data type: {str(e)}"}), 400
     except Exception as e:
+        print(f"Product creation error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/products/<product_id>', methods=['GET'])
@@ -872,4 +882,4 @@ if __name__ == '__main__':
     print("🚀 Starting Professional CRUD Application...")
     print(f"📊 Database: {DATABASE_NAME}")
     print(f"🔗 MongoDB: {'Connected' if mongo_connected else 'Disconnected'}")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)
